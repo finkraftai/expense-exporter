@@ -1,0 +1,51 @@
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.egg-info/
+*.log
+
+# --- Virtual env ---
+venv/
+.env/
+.venv/
+
+# --- IDE & OS junk ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+src/logs/
+logs/
+
+# --- Credentials & Configs ---
+*.env
+*.ini
+*.cfg
+*.json
+
+# --- Local build / dist ---
+dist/
+build/
+*.egg
+*.whl
+
+# --- Database dumps ---
+*.sql
+*.sql.gz
+*.dump
+*.backup
+pgdata/
+postgres-data/
+
+# --- Temporary files ---
+*.tmp
+*.bak
+*.swp
+
+
+downloads/

@@ -1,0 +1,11 @@
+loguru
+python-dotenv
+pandas
+psycopg2
+pymongo
+azure-storage-blob
+azure-core
+requests
+boto3
+botocore
+urlparse
