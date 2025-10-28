@@ -9,3 +9,5 @@ requests
 boto3
 botocore
 urlparse
+postgres_process
+openpyxl 

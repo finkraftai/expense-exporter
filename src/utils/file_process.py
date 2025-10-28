@@ -5,11 +5,11 @@ import hashlib
 import pandas as pd
 import requests
 from urllib.parse import urlparse
-from postgres_process import PostgresProcess
-from mongodb_process import MongoDBProcess
-from logger import logger
-from cloud_helper import AwsHelper,AzureHelper
-from config import AWS_BUCKET_NAME,CLIENT,SOURCE,DOWNLOAD_DIR
+from .postgres_process import PostgresProcess
+from .mongodb_process import MongoDBProcess
+from .logger import logger
+from .cloud_helper import AwsHelper,AzureHelper
+from .config import AWS_BUCKET_NAME,CLIENT,SOURCE,DOWNLOAD_DIR
 
 def calculate_md5(file_path, chunk_size=4096):
     """ Calculate the MD5 hash of a file. """
@@ -22,6 +22,11 @@ def calculate_md5(file_path, chunk_size=4096):
 
 class FileProcessor:
     """ Processor for CSV/Excel files containing hotel expense data. """
+
+    def __init__(self):
+        """Initialize the processor with AWS helper."""
+        self.aws_helper = AwsHelper()
+
     def process_file(self, input_file_path, output_file_path):
         """ Process CSV or Excel file containing invoice data. """
         logger.info("==>Starting CSV/Excel Processor<==")
@@ -106,9 +111,9 @@ class FileProcessor:
 
                 # Step 2b: Upload to S3 with correct path structure
                 filename = os.path.basename(local_file_path)
-                s3_key = f"{AWS_BUCKET_NAME}/tmc_portal/{CLIENT}/{filename}"
+                s3_key = f"Hotel_invoice_scraped/tmc-portal/{CLIENT}/{filename}"
 
-                upload_success = self.upload_blob(local_file_path, s3_key)
+                upload_success = self.aws_helper.upload_blob(local_file_path, s3_key)
                 if not upload_success:
                     logger.warning(f"Row {idx + 1}: S3 upload failed for {local_file_path}")
                     df.at[idx, 'status'] = "FAILED: S3 upload failed"
@@ -116,7 +121,7 @@ class FileProcessor:
                     continue
 
                 # Generate S3 pre-signed link
-                s3_link = self.generate_presigned_url(s3_key)
+                s3_link = self.aws_helper.generate_presigned_url(s3_key)
                 df.at[idx, 's3_link'] = s3_link
                 logger.info(f"Row {idx + 1}: Generated S3 link: {s3_link}")
                 df.at[idx, 'status'] = "SUCESS"
@@ -147,7 +152,7 @@ class FileProcessor:
                         continue
                 
                 
-                # Step 2d: Insert metadata to PostgreSQL invoice_uploads table
+                # Step 2d: Insert metadata to PostgreSQL hotel_invoice table
                 pg_data = {
                     'source': 'tmc-portal',  # As specified
                     'source_id': source_id,  # MongoDB document ID
@@ -177,7 +182,7 @@ class FileProcessor:
                     'TOTAL INVOICE AMOUNT': 'gst_amount',
                     # Other fields like BOOKING_ID, SOURCE_ID, etc. can be added if needed
                 }
-                
+
                   # Extract fields from the row using the mapping
                 for excel_col, pg_field in column_mapping.items():
                     if excel_col in row and not pd.isna(row[excel_col]):
@@ -185,7 +190,7 @@ class FileProcessor:
                             pg_data[pg_field] = float(row[excel_col])
                         else:
                             pg_data[pg_field] = str(row[excel_col])
-                            
+
                 pg_result = PostgresProcess.insert_full_invoice_data(pg_data)
                 if pg_result:
                     logger.info(f"✓ [{idx + 1}/{len(df)}] PostgreSQL insert successful (ID: {pg_result.get('id', 'N/A')})")
@@ -209,6 +214,18 @@ class FileProcessor:
                 failed_count += 1
                 continue
         
+        # Step 3: Save updated file with processing status and generated links
+        if output_file_path:
+            try:
+                if output_file_path.lower().endswith('.csv'):
+                    df.to_csv(output_file_path, index=False)
+                elif output_file_path.lower().endswith(('.xlsx', '.xls')):
+                    df.to_excel(output_file_path, index=False)
+                logger.info(f"Updated file saved to: {output_file_path}")
+            except Exception as e:
+                logger.error(f"Failed to save updated file: {e}")
+                return False
+
         elapsed = time.time() - start_time
         logger.info("="*80)
         logger.info("CSV/Excel Processor Summary:")
