@@ -74,7 +74,7 @@ import argparse
 from utils.logger import logger
 
 
-# ✅ Ensure absolute imports work when running from project root
+# Ensure absolute imports work when running from project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
@@ -83,7 +83,7 @@ def run_csv_excel_processing(input_path, output_path):
     """Run CSV/Excel file processing"""
     from utils.file_process import FileProcessor
 
-    # ✅ Validate input file path
+    # Validate input file path
     if not input_path or not os.path.exists(input_path):
         logger.error(f"Input file not found: {input_path}")
         logger.info("Please provide a valid input file path.")
@@ -95,9 +95,9 @@ def run_csv_excel_processing(input_path, output_path):
     success = processor.process_file(input_path, output_path)
 
     if success:
-        logger.info("✅ Expense Exporter processing completed successfully")
+        logger.info("Expense Exporter processing completed successfully")
     else:
-        logger.error("❌ Expense Exporter processing failed")
+        logger.error("Expense Exporter processing failed")
         sys.exit(1)
 
 
@@ -107,7 +107,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="Expense Exporter")
 
-    # ✅ Mode argument (for future extensibility)
+    # Mode argument (for future extensibility)
     parser.add_argument(
         "--mode",
         choices=["csv"],
@@ -115,7 +115,7 @@ def main():
         help="Processing mode: 'csv' for CSV/Excel processing"
     )
 
-    # ✅ Optional CLI arguments for overriding .env paths
+    # Optional CLI arguments for overriding .env paths
     parser.add_argument(
         "input_file",
         nargs="?",

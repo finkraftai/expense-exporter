@@ -195,7 +195,7 @@ class PostgresProcess:
                     for field in [
                         'source_id', 'source', 'client_name', 'file_url', 'file_hash', 'status',
                         'match_status', '2b_id', 'booking_id', 'client_gstin', 'hotel_gstin',
-                        'invoice_number', 'invoice_date', 'gst_amount', 'remarks', 'followup_tracking_id'
+                        'invoice_number', 'invoice_date', 'gst_amount', 'remarks', 'followup_tracking_id', 'updated_on'
                     ]:
                         if field in invoice_data and invoice_data[field] is not None:
                             fields.append(f'"{field}"')
@@ -203,8 +203,8 @@ class PostgresProcess:
                             placeholders.append('%s')
 
                     query = f"""
-                        INSERT INTO hotel_invoice ({', '.join(fields)}, "updated_on")
-                        VALUES ({', '.join(placeholders)}, CURRENT_TIMESTAMP)
+                        INSERT INTO hotel_invoice ({', '.join(fields)})
+                        VALUES ({', '.join(placeholders)})
                         RETURNING id
                     """
 
