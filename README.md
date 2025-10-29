@@ -222,14 +222,6 @@ This will:
 
 ---
 
-## 🏁Example Run
-
-```bash
-
-python main.py
-
-```
-
 ---
 
 ## 📜License
