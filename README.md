@@ -222,16 +222,6 @@ This will:
 
 ---
 
-## 🏁Example Run
-
-```bash
-
-python main.py
-
-```
-
----
-
 ## 📜License
 
 This project is proprietary and developed for **Finkraft’s internal expense automation system**.
