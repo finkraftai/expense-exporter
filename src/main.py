@@ -19,8 +19,6 @@
 #     """Run CSV/Excel file processing"""
 #     from utils.file_process import FileProcessor
 #     from utils.config import INPUT_FILE_PATH, OUTPUT_FILE_PATH
-    
-    
 
 #     processor = FileProcessor()
 #     success = processor.process_file(INPUT_FILE_PATH, OUTPUT_FILE_PATH)
@@ -61,18 +59,13 @@
 
 """
 Main Entry Point for Expense Exporter
-
-Processes CSV/Excel files containing HOTEL_INVOICE_PATH:
-- Downloads PDFs from URLs
-- Uploads them to cloud storage (S3/Azure)
-- Updates the file with generated links and statuses
+Processes CSV/Excel files: - Downloads PDFs from URLs - Uploads them to cloud storage (S3/Azure) - Updates the file with generated links and statuses
 """
 
 import sys
 import os
 import argparse
 from utils.logger import logger
-
 
 # Ensure absolute imports work when running from project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -100,9 +93,7 @@ def run_csv_excel_processing(input_path, output_path):
         logger.error("Expense Exporter processing failed")
         sys.exit(1)
 
-
 def main():
-    """Main entry point with command-line argument parsing."""
     from utils.config import INPUT_FILE_PATH, OUTPUT_FILE_PATH
 
     parser = argparse.ArgumentParser(description="Expense Exporter")
@@ -140,7 +131,6 @@ def main():
     except Exception as e:
         logger.error(f"Unexpected error: {e}", exc_info=True)
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

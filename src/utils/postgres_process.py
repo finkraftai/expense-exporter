@@ -118,11 +118,9 @@
 #             logger.error(f"PostgreSQL full insert failed: {e}", exc_info=True)
 #             return None
 
-
 import psycopg2
 from .config import DB_CONFIG
 from .logger import logger
-
 
 class PostgresProcess:
     """Handles PostgreSQL database operations for invoice data."""
