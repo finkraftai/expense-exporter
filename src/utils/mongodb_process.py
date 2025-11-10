@@ -14,7 +14,7 @@ class MongoDBProcess:
     def __init__(self):
         """Initialize MongoDB client and database connection."""
         try:
-            self.client = MongoClient(MONGO_URI) # ✅ Use MongoClient instead of MongoClient()
+            self.client = MongoClient(MONGO_URI) 
             self.db = self.client[MONGO_DB_NAME]
             self.collection = self.db[MONGO_COLLECTION_NAME]
             # ✅ Avoid logging URI (security best practice)

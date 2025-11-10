@@ -45,36 +45,6 @@ class CloudHelperFactory:
         else:
             raise ValueError(f"Unsupported CLOUD_PROVIDER: {CLOUD_PROVIDER}")
         
-        
-# class AwsHelper(CloudHelper):
-#     """Helper class for AWS S3 operations."""
-
-#     def __init__(self):
-#         """ Initialize the S3 client with credentials and bucket info. """
-#         s3_config = {
-#             'aws_access_key_id': AWS_ACCESS_KEY_ID,
-#             'aws_secret_access_key': AWS_SECRET_ACCESS_KEY,
-#             'region_name': AWS_REGION
-#         }
-        
-#         self.s3_client = boto3.client('s3', **s3_config)
-#         self.bucket_name = AWS_BUCKET_NAME
-
-#     def upload_blob(self, local_path, key):
-#         """ Upload a file to AWS S3. """
-#         try:
-#             logger.debug(f"Uploading file: {local_path} → s3://{self.bucket_name}/{key}")
-#             self.s3_client.upload_file(local_path, self.bucket_name, key)
-#             logger.info(f"Uploaded file: {local_path} → s3://{self.bucket_name}/{key}")
-#             return True
-#         except (BotoCoreError, ClientError) as e:
-#             logger.error(f"Error uploading file {local_path} to S3: {e}", exc_info=True)
-#             return False
-
-#     def get_file_url(self, key):
-#         """ Generate S3 URL for the object. """
-#         return f"s3://{self.bucket_name}/{key}"
-
 class AwsHelper(CloudHelper):
     """Helper class for AWS S3 operations."""
     def __init__(self):
@@ -141,34 +111,6 @@ class AwsHelper(CloudHelper):
         """Generate a pre-signed S3 URL for the object."""
         return self.generate_presigned_url(blob_name)
 
-    # def upload_output_file(self, output_file_path):
-    #     """ Upload processed output file (Excel/CSV) to S3 and verify upload. """
-    #     try:
-    #         if not os.path.exists(output_file_path):
-    #             logger.warning(f"Output file does not exist: {output_file_path}")
-    #             return False
-
-    #         file_name = os.path.basename(output_file_path)
-    #         s3_key = f"{S3_UPLOAD_PREFIX}/processed/{file_name}"
-
-    #         logger.debug(f"Uploading output file to S3: {output_file_path} → s3://{self.bucket_name}/{s3_key}")
-
-    #         # Upload
-    #         self.s3_client.upload_file(output_file_path, self.bucket_name, s3_key)
-
-    #         # Verify
-    #         try:
-    #             self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
-    #             logger.info(f"Uploaded processed file: s3://{self.bucket_name}/{s3_key}")
-    #             return True
-    #         except Exception as verify_err:
-    #             logger.error(f"Verification failed for output file upload: {verify_err}")
-    #             return False
-
-    #     except Exception as e:
-    #         logger.error(f"Failed to upload output file {output_file_path} to S3: {e}", exc_info=True)
-    #         return False
-
     def upload_output_file(self, output_file_path):
         """Upload processed output file (Excel/CSV) to S3, verify upload, and return URL."""
         try:
@@ -192,8 +134,6 @@ class AwsHelper(CloudHelper):
         except (BotoCoreError, ClientError, Exception) as e:
             logger.error(f"❌ Failed to upload output file {output_file_path}: {e}", exc_info=True)
             return None
-
-
 
 class AzureHelper(CloudHelper):
     """ Helper class for Azure Blob Storage operations. """
@@ -251,3 +191,87 @@ class AzureHelper(CloudHelper):
         except (AzureError, Exception) as e:
             logger.error(f"❌ Failed to upload output file {output_file_path}: {e}", exc_info=True)
             return None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # def upload_output_file(self, output_file_path):
+    #     """ Upload processed output file (Excel/CSV) to S3 and verify upload. """
+    #     try:
+    #         if not os.path.exists(output_file_path):
+    #             logger.warning(f"Output file does not exist: {output_file_path}")
+    #             return False
+
+    #         file_name = os.path.basename(output_file_path)
+    #         s3_key = f"{S3_UPLOAD_PREFIX}/processed/{file_name}"
+
+    #         logger.debug(f"Uploading output file to S3: {output_file_path} → s3://{self.bucket_name}/{s3_key}")
+
+    #         # Upload
+    #         self.s3_client.upload_file(output_file_path, self.bucket_name, s3_key)
+
+    #         # Verify
+    #         try:
+    #             self.s3_client.head_object(Bucket=self.bucket_name, Key=s3_key)
+    #             logger.info(f"Uploaded processed file: s3://{self.bucket_name}/{s3_key}")
+    #             return True
+    #         except Exception as verify_err:
+    #             logger.error(f"Verification failed for output file upload: {verify_err}")
+    #             return False
+
+    #     except Exception as e:
+    #         logger.error(f"Failed to upload output file {output_file_path} to S3: {e}", exc_info=True)
+    #         return False
+
+
+        
+# class AwsHelper(CloudHelper):
+#     """Helper class for AWS S3 operations."""
+
+#     def __init__(self):
+#         """ Initialize the S3 client with credentials and bucket info. """
+#         s3_config = {
+#             'aws_access_key_id': AWS_ACCESS_KEY_ID,
+#             'aws_secret_access_key': AWS_SECRET_ACCESS_KEY,
+#             'region_name': AWS_REGION
+#         }
+        
+#         self.s3_client = boto3.client('s3', **s3_config)
+#         self.bucket_name = AWS_BUCKET_NAME
+
+#     def upload_blob(self, local_path, key):
+#         """ Upload a file to AWS S3. """
+#         try:
+#             logger.debug(f"Uploading file: {local_path} → s3://{self.bucket_name}/{key}")
+#             self.s3_client.upload_file(local_path, self.bucket_name, key)
+#             logger.info(f"Uploaded file: {local_path} → s3://{self.bucket_name}/{key}")
+#             return True
+#         except (BotoCoreError, ClientError) as e:
+#             logger.error(f"Error uploading file {local_path} to S3: {e}", exc_info=True)
+#             return False
+
+#     def get_file_url(self, key):
+#         """ Generate S3 URL for the object. """
+#         return f"s3://{self.bucket_name}/{key}"

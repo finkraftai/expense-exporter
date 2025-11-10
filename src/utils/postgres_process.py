@@ -117,6 +117,14 @@ class PostgresProcess:
 
 
 
+
+
+
+
+
+
+
+
 # import psycopg2
 # from .config import DB_CONFIG
 # from .logger import logger
