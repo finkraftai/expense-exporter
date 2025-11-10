@@ -1,3 +1,122 @@
+import psycopg2
+from .config import DB_CONFIG
+from .logger import logger
+
+class PostgresProcess:
+    """Handles PostgreSQL database operations for invoice data."""
+
+    @staticmethod
+    def get_db_connection():
+        """Establish a connection to the PostgreSQL database."""
+        logger.debug("Establishing PostgreSQL database connection")
+        return psycopg2.connect(**DB_CONFIG)
+
+    @staticmethod
+    def insert_file_metadata(file_url, source, client_name, file_hash):
+        """Insert basic file metadata and update duplicates."""
+        try:
+            with PostgresProcess.get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    logger.debug(f"Checking if hash exists: {file_hash}")
+                    cur.execute("SELECT id FROM hotel_invoice WHERE file_hash = %s", (file_hash,))
+                    existing = cur.fetchone()
+
+                    if existing:
+                        record_id = existing[0]
+                        cur.execute("""
+                            UPDATE hotel_invoice
+                            SET updated_on = CURRENT_TIMESTAMP
+                            WHERE id = %s
+                        """, (record_id,))
+                        conn.commit()
+                        logger.info(f"Duplicate file detected. Refreshed updated_on for record {record_id}")
+                        return {"id": str(record_id), "is_duplicate": True}
+
+                    cur.execute("""
+                        INSERT INTO hotel_invoice (file_url, source, client_name, file_hash, status, updated_on)
+                        VALUES (%s, %s, %s, %s, 'PENDING', CURRENT_TIMESTAMP)
+                        RETURNING id
+                    """, (file_url, source, client_name, file_hash))
+                    record_id = cur.fetchone()[0]
+                    conn.commit()
+                    logger.info(f"Inserted new record {record_id} for {file_url}")
+                    return {"id": str(record_id), "is_duplicate": False}
+        except Exception as e:
+            logger.error(f"PostgreSQL insert failed for {file_url}: {e}", exc_info=True)
+            return None
+
+    @staticmethod
+    def insert_full_invoice_data(invoice_data):
+        """Insert or update a full invoice record into the hotel_invoice table."""
+        try:
+            with PostgresProcess.get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    file_hash = invoice_data.get('file_hash')
+                    logger.debug(f"Checking if hash exists: {file_hash}")
+                    cur.execute("SELECT id FROM hotel_invoice WHERE file_hash = %s", (file_hash,))
+                    existing = cur.fetchone()
+
+                    if existing:
+                        record_id = existing[0]
+                        # Explicit update to maintain compatibility across DBs
+                        cur.execute("""
+                            UPDATE hotel_invoice
+                            SET updated_on = CURRENT_TIMESTAMP
+                            WHERE id = %s
+                        """, (record_id,))
+                        conn.commit()
+                        logger.info(f"Duplicate file detected. Refreshed updated_on for record {record_id}")
+                        return {"id": str(record_id), "is_duplicate": True}
+
+                    # Build insert dynamically
+                    fields, values, placeholders = [], [], []
+                    for field in [
+                        'source_id', 'source', 'client_name', 'file_url', 'file_hash', 'status',
+                        'match_status', '2b_id', 'booking_id', 'client_gstin', 'hotel_gstin',
+                        'invoice_number', 'invoice_date', 'gst_amount', 'remarks', 'followup_tracking_id', 'updated_on'
+                    ]:
+                        if field in invoice_data and invoice_data[field] is not None:
+                            fields.append(f'"{field}"')
+                            values.append(invoice_data[field])
+                            placeholders.append('%s')
+
+                    query = f"""
+                        INSERT INTO hotel_invoice ({', '.join(fields)})
+                        VALUES ({', '.join(placeholders)})
+                        RETURNING id
+                    """
+
+                    cur.execute(query, values)
+                    record_id = cur.fetchone()[0]
+                    conn.commit()
+                    logger.info(f"Inserted new invoice record {record_id}")
+                    return {"id": str(record_id), "is_duplicate": False}
+        except Exception as e:
+            logger.error(f"PostgreSQL full insert failed: {e}", exc_info=True)
+            return None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # import psycopg2
 # from .config import DB_CONFIG
 # from .logger import logger
@@ -117,100 +236,3 @@
 #         except Exception as e:
 #             logger.error(f"PostgreSQL full insert failed: {e}", exc_info=True)
 #             return None
-
-import psycopg2
-from .config import DB_CONFIG
-from .logger import logger
-
-class PostgresProcess:
-    """Handles PostgreSQL database operations for invoice data."""
-
-    @staticmethod
-    def get_db_connection():
-        """Establish a connection to the PostgreSQL database."""
-        logger.debug("Establishing PostgreSQL database connection")
-        return psycopg2.connect(**DB_CONFIG)
-
-    @staticmethod
-    def insert_file_metadata(file_url, source, client_name, file_hash):
-        """Insert basic file metadata and update duplicates."""
-        try:
-            with PostgresProcess.get_db_connection() as conn:
-                with conn.cursor() as cur:
-                    logger.debug(f"Checking if hash exists: {file_hash}")
-                    cur.execute("SELECT id FROM hotel_invoice WHERE file_hash = %s", (file_hash,))
-                    existing = cur.fetchone()
-
-                    if existing:
-                        record_id = existing[0]
-                        cur.execute("""
-                            UPDATE hotel_invoice
-                            SET updated_on = CURRENT_TIMESTAMP
-                            WHERE id = %s
-                        """, (record_id,))
-                        conn.commit()
-                        logger.info(f"Duplicate file detected. Refreshed updated_on for record {record_id}")
-                        return {"id": str(record_id), "is_duplicate": True}
-
-                    cur.execute("""
-                        INSERT INTO hotel_invoice (file_url, source, client_name, file_hash, status, updated_on)
-                        VALUES (%s, %s, %s, %s, 'PENDING', CURRENT_TIMESTAMP)
-                        RETURNING id
-                    """, (file_url, source, client_name, file_hash))
-                    record_id = cur.fetchone()[0]
-                    conn.commit()
-                    logger.info(f"Inserted new record {record_id} for {file_url}")
-                    return {"id": str(record_id), "is_duplicate": False}
-        except Exception as e:
-            logger.error(f"PostgreSQL insert failed for {file_url}: {e}", exc_info=True)
-            return None
-
-    @staticmethod
-    def insert_full_invoice_data(invoice_data):
-        """Insert or update a full invoice record into the hotel_invoice table."""
-        try:
-            with PostgresProcess.get_db_connection() as conn:
-                with conn.cursor() as cur:
-                    file_hash = invoice_data.get('file_hash')
-                    logger.debug(f"Checking if hash exists: {file_hash}")
-                    cur.execute("SELECT id FROM hotel_invoice WHERE file_hash = %s", (file_hash,))
-                    existing = cur.fetchone()
-
-                    if existing:
-                        record_id = existing[0]
-                        # Explicit update to maintain compatibility across DBs
-                        cur.execute("""
-                            UPDATE hotel_invoice
-                            SET updated_on = CURRENT_TIMESTAMP
-                            WHERE id = %s
-                        """, (record_id,))
-                        conn.commit()
-                        logger.info(f"Duplicate file detected. Refreshed updated_on for record {record_id}")
-                        return {"id": str(record_id), "is_duplicate": True}
-
-                    # Build insert dynamically
-                    fields, values, placeholders = [], [], []
-                    for field in [
-                        'source_id', 'source', 'client_name', 'file_url', 'file_hash', 'status',
-                        'match_status', '2b_id', 'booking_id', 'client_gstin', 'hotel_gstin',
-                        'invoice_number', 'invoice_date', 'gst_amount', 'remarks', 'followup_tracking_id', 'updated_on'
-                    ]:
-                        if field in invoice_data and invoice_data[field] is not None:
-                            fields.append(f'"{field}"')
-                            values.append(invoice_data[field])
-                            placeholders.append('%s')
-
-                    query = f"""
-                        INSERT INTO hotel_invoice ({', '.join(fields)})
-                        VALUES ({', '.join(placeholders)})
-                        RETURNING id
-                    """
-
-                    cur.execute(query, values)
-                    record_id = cur.fetchone()[0]
-                    conn.commit()
-                    logger.info(f"Inserted new invoice record {record_id}")
-                    return {"id": str(record_id), "is_duplicate": False}
-        except Exception as e:
-            logger.error(f"PostgreSQL full insert failed: {e}", exc_info=True)
-            return None
