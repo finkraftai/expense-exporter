@@ -77,7 +77,6 @@ class CloudHelperFactory:
 
 class AwsHelper(CloudHelper):
     """Helper class for AWS S3 operations."""
-
     def __init__(self):
         """Initialize the S3 client with credentials and bucket info."""
         s3_config = {
