@@ -183,7 +183,6 @@ class FileProcessor:
                     'gst_amount': None,
                     'remarks': f"Processed from {CLIENT}",
                     'followup_tracking_id': None,
-                    'source_id': source_id,         
                     'updated_on': pd.Timestamp.now()
                 }
 
