@@ -55,7 +55,7 @@ class AwsHelper(CloudHelper):
             'region_name': AWS_REGION
         }
 
-        self.s3_client = boto3.client('s3', **s3_config)
+        # self.s3_client = boto3.client('s3', **s3_config)
         # Use regional endpoint for S3
         endpoint_url = f"https://s3.{AWS_REGION}.amazonaws.com"
         self.s3_client = boto3.client('s3', endpoint_url=endpoint_url, **s3_config)
@@ -191,12 +191,6 @@ class AzureHelper(CloudHelper):
         except (AzureError, Exception) as e:
             logger.error(f"❌ Failed to upload output file {output_file_path}: {e}", exc_info=True)
             return None
-
-
-
-
-
-
 
 
 

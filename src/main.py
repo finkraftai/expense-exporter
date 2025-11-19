@@ -20,8 +20,8 @@ def run_csv_excel_processing(input_path, output_path):
     # Validate input file path
     if not input_path or not os.path.exists(input_path):
         logger.error(f"Input file not found: {input_path}")
-        logger.info("Please provide a valid input file path.")
-        logger.info("Usage: python main.py <input_file_path> [output_file_path]")
+        # logger.info("Please provide a valid input file path.")
+        # logger.info("Usage: python main.py <input_file_path> [output_file_path]")
         sys.exit(1)
 
     processor = FileProcessor()
@@ -36,7 +36,7 @@ def run_csv_excel_processing(input_path, output_path):
 
 def main():
     from utils.config import INPUT_FILE_PATH, OUTPUT_FILE_PATH
-
+    
     parser = argparse.ArgumentParser(description="Expense Exporter")
 
     # Mode argument (for future extensibility)
@@ -67,7 +67,7 @@ def main():
         if args.mode == "csv":
             run_csv_excel_processing(args.input_file, args.output_file)
     except KeyboardInterrupt:
-        logger.info("Process interrupted by user")
+        logger.info("Service interrupted by user, shutting down...")
         sys.exit(1)
     except Exception as e:
         logger.error(f"Unexpected error: {e}", exc_info=True)
@@ -75,7 +75,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 
 
