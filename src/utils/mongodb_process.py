@@ -43,6 +43,21 @@ class MongoDBProcess:
             logger.error(f"Failed to check for duplicate in MongoDB: {e}", exc_info=True)
             return False
 
+    def delete_by_id(self, document_id):
+        """ Delete a document by its ID."""
+        try:
+            from bson import ObjectId
+            result = self.collection.delete_one({"_id": ObjectId(document_id)})
+            if result.deleted_count > 0:
+                logger.info(f"Deleted document with ID: {document_id}")
+                return True
+            else:
+                logger.warning(f"No document found with ID: {document_id}")
+                return False
+        except PyMongoError as e:
+            logger.error(f"Failed to delete document from MongoDB: {e}", exc_info=True)
+            return False
+
     def close_connection(self):
         """Close the MongoDB client connection."""
         if hasattr(self, "client") and self.client:

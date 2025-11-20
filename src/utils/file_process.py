@@ -117,7 +117,15 @@ class FileProcessor:
                     file_hash = calculate_md5(local_file_path)
                     df.at[idx, 'file_hash'] = file_hash
 
-                    # Step 2c: Upload to S3 with specified path structure
+                    # Step 2c: Check for duplicates in MongoDB before uploading to S3
+                    with MongoDBProcess() as mongo_helper:
+                        if mongo_helper.check_duplicate_by_hash(file_hash):
+                            logger.info(f"✓ [{idx + 1}/{len(df)}] Duplicate file detected in MongoDB (Hash: {file_hash[:8]}...), skipping upload and insert")
+                            df.at[idx, 'status'] = "DUPLICATE: File already processed"
+                            failed_count += 1
+                            continue
+
+                    # Step 2d: Upload to S3 with specified path structure
                     filename = os.path.basename(local_file_path)
                     s3_key = f"{S3_UPLOAD_PREFIX}/{filename}"
 
@@ -134,37 +142,35 @@ class FileProcessor:
                     df.at[idx, 'status'] = "SUCCESS"
                     logger.info(f"Row {idx + 1}: Generated S3 object URL: {s3_link}")
 
-                    # Step 2d: Check for duplicates in MongoDB before inserting
-                    with MongoDBProcess() as mongo_helper:
-                        if mongo_helper.check_duplicate_by_hash(file_hash):
-                            logger.info(f"✓ [{idx + 1}/{len(df)}] Duplicate file detected in MongoDB (Hash: {file_hash[:8]}...), skipping insert")
-                            df.at[idx, 'status'] = "DUPLICATE: File already processed"
-                            failed_count += 1
-                            continue
+                    # Prepare MongoDB data (all Excel columns + new fields)
+                    mongo_data = row.to_dict()
+                    mongo_data.update({
+                        'file_link': file_url,
+                        's3_link': s3_link,
+                        'status': 'SUCCESS',
+                        'file_hash': file_hash,
+                        'corp_name': CLIENT,
+                        'processed_at': pd.Timestamp.now(),
+                        'source': SOURCE,
+                        'client_name': CLIENT
+                    })
 
-                        # Prepare MongoDB data (all Excel columns + new fields)
-                        mongo_data = row.to_dict()
-                        mongo_data.update({
-                            'file_link': file_url,
-                            's3_link': s3_link,
-                            'status': 'SUCCESS',
-                            'file_hash': file_hash,
-                            'corp_name': CLIENT,
-                            'processed_at': pd.Timestamp.now(),
-                            'source': SOURCE,
-                            'client_name': CLIENT
-                        })
-
-                        # Insert into MongoDB
-                        mongo_id = mongo_helper.insert_invoice_data(mongo_data)
-                        if mongo_id:
-                            logger.info(f"✓ [{idx + 1}/{len(df)}] MongoDB insert successful (ID: {mongo_id})")
-                            source_id = str(mongo_id)
-                        else:
-                            logger.warning(f"Row {idx + 1}: MongoDB insert failed")
-                            df.at[idx, 'status'] = "FAILED: MongoDB insert failed"
-                            failed_count += 1
-                            continue
+                    # Insert into MongoDB
+                    mongo_id = mongo_helper.insert_invoice_data(mongo_data)
+                    if mongo_id:
+                        logger.info(f"✓ [{idx + 1}/{len(df)}] MongoDB insert successful (ID: {mongo_id})")
+                        source_id = str(mongo_id)
+                    else:
+                        logger.warning(f"Row {idx + 1}: MongoDB insert failed")
+                        df.at[idx, 'status'] = "FAILED: MongoDB insert failed"
+                        # Cleanup S3 object on MongoDB insert failure
+                        try:
+                            self.cloud_helper.delete_blob(s3_key)
+                            logger.info(f"Cleaned up S3 object: {s3_key}")
+                        except Exception as cleanup_e:
+                            logger.warning(f"Failed to clean up S3 object {s3_key}: {cleanup_e}")
+                        failed_count += 1
+                        continue
 
                     # Step 2e: Insert metadata to PostgreSQL hotel_invoice table
                     pg_data = {
@@ -174,40 +180,47 @@ class FileProcessor:
                         'file_url': s3_link,
                         'file_hash': file_hash,
                         'status': 'PENDING',
-                        'match_status': None,
-                        '2b_id': None,
-                        'booking_id': None,
-                        'client_gstin': None,
-                        'hotel_gstin': None,
-                        'invoice_number': None,
-                        'invoice_date': None,
-                        'gst_amount': None,
-                        'remarks': f"Processed from {CLIENT}",
-                        'followup_tracking_id': None,
+                        # 'match_status': None,
+                        # '2b_id': None,
+                        # 'booking_id': None,
+                        # 'client_gstin': None,
+                        # 'hotel_gstin': None,
+                        # 'invoice_number': None,
+                        # 'invoice_date': None,
+                        # 'gst_amount': None,
+                        # 'remarks': f"Processed from {CLIENT}",
+                        # 'followup_tracking_id': None,
                         'updated_on': pd.Timestamp.now()
                     }
 
-                    # Mapping from Excel column names to PostgreSQL field names
-                    column_mapping = {
-                        'Hotel_GST_Number': 'hotel_gstin',
-                        'Invoice_No': 'invoice_number',
-                        'Invoice_Date': 'invoice_date',
-                        'Booking_Reference_No': 'booking_id'
-                    }
+                    # # Mapping from Excel column names to PostgreSQL field names
+                    # column_mapping = {
+                    #     'Hotel_GST_Number': 'hotel_gstin',
+                    #     'Invoice_No': 'invoice_number',
+                    #     'Invoice_Date': 'invoice_date',
+                    #     'Booking_Reference_No': 'booking_id'
+                    # }
 
-                    # Extract fields from the row using the mapping
-                    for excel_col, pg_field in column_mapping.items():
-                        logger.debug(f"Checking column '{excel_col}' for field '{pg_field}': in row={excel_col in row}, value={row.get(excel_col, 'NOT_IN_ROW')}, isna={pd.isna(row.get(excel_col, None)) if excel_col in row else 'N/A'}")
-                        if excel_col in row and not pd.isna(row[excel_col]):
-                            if pg_field == 'gst_amount':
-                                pg_data[pg_field] = float(row[excel_col])
-                            elif pg_field == 'invoice_date':
-                                pg_data[pg_field] = pd.to_datetime(row[excel_col])
-                            else:
-                                pg_data[pg_field] = str(row[excel_col])
-                            logger.debug(f"Set pg_data['{pg_field}'] = {pg_data[pg_field]}")
-                        else:
-                            logger.debug(f"Skipped setting '{pg_field}' due to missing or NaN value")
+                    # # Extract fields from the row using the mapping
+                    # for excel_col, pg_field in column_mapping.items():
+                    #     logger.debug(f"Checking column '{excel_col}' for field '{pg_field}': in row={excel_col in row}, value={row.get(excel_col, 'NOT_IN_ROW')}, isna={pd.isna(row.get(excel_col, None)) if excel_col in row else 'N/A'}")
+                    #     if excel_col in row and not pd.isna(row[excel_col]):
+                    #         try:
+                    #             if pg_field == 'gst_amount':
+                    #                 pg_data[pg_field] = float(row[excel_col])
+                    #             elif pg_field == 'invoice_date':
+                    #                 parsed_date = pd.to_datetime(row[excel_col], errors='coerce')
+                    #                 if not pd.isna(parsed_date):
+                    #                     pg_data[pg_field] = parsed_date
+                    #                 else:
+                    #                     logger.debug(f"Invalid date value '{row[excel_col]}' for field '{pg_field}', skipping")
+                    #             else:
+                    #                 pg_data[pg_field] = str(row[excel_col])
+                    #             logger.debug(f"Set pg_data['{pg_field}'] = {pg_data[pg_field]}")
+                    #         except (ValueError, TypeError) as e:
+                    #             logger.debug(f"Failed to convert value '{row[excel_col]}' for field '{pg_field}': {e}, skipping this field")
+                    #     else:
+                    #         logger.debug(f"Skipped setting '{pg_field}' due to missing or NaN value")
 
                     # Insert into PostgreSQL (moved outside the loop)
                     logger.info(f"Row {idx + 1}: Preparing PostgreSQL data: {pg_data}")
@@ -221,6 +234,17 @@ class FileProcessor:
                     except Exception as e:
                         logger.error(f"Postgres insert error for row {idx + 1}: {e}", exc_info=True)
                         df.at[idx, 'status'] = "FAILED: PostgreSQL insert error"
+                        # Cleanup S3 object and MongoDB record on PostgreSQL insert failure
+                        try:
+                            self.cloud_helper.delete_blob(s3_key)
+                            logger.info(f"Cleaned up S3 object: {s3_key}")
+                        except Exception as cleanup_e:
+                            logger.warning(f"Failed to clean up S3 object {s3_key}: {cleanup_e}")
+                        try:
+                            mongo_helper.delete_by_id(mongo_id)
+                            logger.info(f"Cleaned up MongoDB record: {mongo_id}")
+                        except Exception as cleanup_e:
+                            logger.warning(f"Failed to clean up MongoDB record {mongo_id}: {cleanup_e}")
                         failed_count += 1
                         continue
 

@@ -18,13 +18,13 @@ class PostgresProcess:
             with PostgresProcess.get_db_connection() as conn:
                 with conn.cursor() as cur:
                     logger.debug(f"Checking if hash exists: {file_hash}")
-                    cur.execute("SELECT id FROM hotel_invoice WHERE file_hash = %s", (file_hash,))
+                    cur.execute("SELECT id FROM hotel_uploads WHERE file_hash = %s", (file_hash,))
                     existing = cur.fetchone()
 
                     if existing:
                         record_id = existing[0]
                         cur.execute("""
-                            UPDATE hotel_invoice
+                            UPDATE hotel_uploads
                             SET updated_on = CURRENT_TIMESTAMP
                             WHERE id = %s
                         """, (record_id,))
@@ -33,7 +33,7 @@ class PostgresProcess:
                         return {"id": str(record_id), "is_duplicate": True}
 
                     cur.execute("""
-                        INSERT INTO hotel_invoice (file_url, source, client_name, file_hash, status, updated_on)
+                        INSERT INTO hotel_uploads (file_url, source, client_name, file_hash, status, updated_on)
                         VALUES (%s, %s, %s, %s, 'PENDING', CURRENT_TIMESTAMP)
                         RETURNING id
                     """, (file_url, source, client_name, file_hash))
@@ -47,20 +47,20 @@ class PostgresProcess:
 
     @staticmethod
     def insert_full_invoice_data(invoice_data):
-        """Insert or update a full invoice record into the hotel_invoice table."""
+        """Insert or update a full invoice record into the hotel_uploads table."""
         try:
             with PostgresProcess.get_db_connection() as conn:
                 with conn.cursor() as cur:
                     file_hash = invoice_data.get('file_hash')
                     logger.debug(f"Checking if hash exists: {file_hash}")
-                    cur.execute("SELECT id FROM hotel_invoice WHERE file_hash = %s", (file_hash,))
+                    cur.execute("SELECT id FROM hotel_uploads WHERE file_hash = %s", (file_hash,))
                     existing = cur.fetchone()
 
                     if existing:
                         record_id = existing[0]
                         # Explicit update to maintain compatibility across DBs
                         cur.execute("""
-                            UPDATE hotel_invoice
+                            UPDATE hotel_uploads
                             SET updated_on = CURRENT_TIMESTAMP
                             WHERE id = %s
                         """, (record_id,))
@@ -81,7 +81,7 @@ class PostgresProcess:
                             placeholders.append('%s')
 
                     query = f"""
-                        INSERT INTO hotel_invoice ({', '.join(fields)})
+                        INSERT INTO hotel_uploads ({', '.join(fields)})
                         VALUES ({', '.join(placeholders)})
                         RETURNING id
                     """
